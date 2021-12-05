@@ -18,7 +18,9 @@ chr_coords = {"chr1q_start":28100001, "chr2q_start":96000000, "chr3q_start":9400
 chr_names = ["chr1.fa", "chr2.fa", "chr3.fa", "chr4.fa", "chr5.fa", "chr6.fa", "chr7.fa", "chr8.fa", "chr9.fa", "chr10.fa", "chr11.fa", "chr12.fa", \
              "chr13.fa", "chr14.fa", "chr15.fa", "chr16.fa", "chr17.fa", "chr18.fa", "chr19.fa", "chr20.fa", "chr21.fa", "chr22.fa"]
 
+# loop through all chromosomes in the genome
 for name in chr_names:
+    # Importing the chromosome into a string
     f = open(name)
     chr = ''
     for line in f:
@@ -27,42 +29,42 @@ for name in chr_names:
             True
         else:
             chr = chr + line
+    # Changing enitre string to upper case letters
     chr = chr.upper()
     chr_name = name[:-3] + "q_start"
+    # Creating a stirng for the q arm
     chrq = chr[chr_coords[chr_name]-1:] #Try chr[chr_coords[chr_name]-1:]
     chrq_len = len(chrq)
+    # Printing chr length
     print(name[:-3], "length is", chrq_len)
     print(" ")
-
+    # Calculating number of bins
+    # bin_size = windoe size
     bin_size = 100000
     bin_num = math.ceil(chrq_len / bin_size)
-        
+    
     target1 = "TTAGGG"
-    target2 = "CCCTAA"
+    target2 = "CCCTAA" # may be used in the future
 
     start_index = 0
     final_index = start_index + bin_size
 
-    x_array = []
-    for i in range(1, bin_num+1):
-        x_array.append(i)
-
     target1_counts = []
     p_values = []
     sig_counts = {} #Statistically sigificant counts
-    non_sig_counts = {}
+    non_sig_counts = {} #Statistically non-sigificant counts
 
     #Statistics
     standard_error = math.sqrt(((1/(4**6))*(1-(1/4**6)))/(bin_size))
     expected_value = int((1/4**6)*(bin_size)) 
-
+    # Iterating through all windows/ storing seq (target1) counts and p_values into arrays
     for i in range(bin_num):
-        
+     
         chrq_bin = chrq[start_index: final_index]
-        
         target1_count = chrq_bin.count(target1)
         target1_counts.append(target1_count)
         
+        # calculating p_value for each window
         z_score = ((target1_count/bin_size) - 1/(4**6))/standard_error
         p_value = norm.cdf(z_score) * 2
         p_values.append(p_value)
@@ -72,13 +74,12 @@ for name in chr_names:
 
         if final_index > chrq_len:
             final_index = chrq_len +1
-
+                      
+    # Significnat: 1d array sotring bool values (true: statistically significnat/ false: non-significant)
+    # q_values: 1d array of fdr corrected values
     significant, q_values = fdrcorrection(p_values)
-
-    expected_line = []
-    for i in range(bin_num):
-        expected_line.append(expected_value)
-        
+    
+    # Storing sig and non-sig counts into separate dictionaries
     sig_counts = {}
     non_sig_counts = {}        
     for i in range(len(q_values)):
@@ -86,6 +87,8 @@ for name in chr_names:
             sig_counts[i+1] = target1_counts[i]
         else:
             non_sig_counts[i+1] = target1_counts[i]
+    
+    # storing results to file
     f_name = name[:-3] + "_results.txt"       
     f = open(f_name,'a')
     f.write("target1_counts - " + "p_values - " + "q_values - " + "significant\n")
@@ -96,10 +99,19 @@ for name in chr_names:
     sig_values = sig_counts.values()
     non_sig_array = non_sig_counts.keys()
     non_sig_values = non_sig_counts.values()
-
+           
+    # generating x-axis values for plots
+    x_array = []
+    for i in range(1, bin_num+1):
+        x_array.append(i)
+     
+    # storing expected number of counts by random chance
+    # values will be used to plot it as a horizontal line
     expected_line = []
     for i in range(bin_num):
         expected_line.append(expected_value)
+    
+    # plotting datapoints on a figure showing the TTAAGGG seq map for each chr
     fig = plt.figure(figsize=(25, 14), dpi=150)
     plt.plot(x_array, expected_line)
     plt.plot(x_array, target1_counts, "g", linewidth=3.2)
@@ -117,6 +129,7 @@ for name in chr_names:
     plt.ylabel('Number of TTAGGG telomeric repeats found in each window', fontsize=20)
     title = "A window distributon of TTAGGG telomeric repeats found in " + name[:-3]
     plt.title(title, fontsize=24)
+    # saving figure by each chromosome's name
     plot_name = name[:-3] + "q.png"
     fig.savefig(plot_name, dpi = 200)
     f.close()
